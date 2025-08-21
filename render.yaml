@@ -2,6 +2,7 @@ services:
   - type: web
     name: face-api
     env: python
+    pythonVersion: "3.11"
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn main:app --bind 0.0.0.0:$PORT
-    plan: free

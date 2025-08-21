@@ -3,5 +3,5 @@ deepface==0.0.92
 mtcnn==0.1.1
 opencv-python-headless==4.10.0.84
 torch==2.5.1
-torchvision==0.21.0
+torchvision==0.20.0
 numpy==1.26.4
