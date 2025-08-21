@@ -1,84 +1,52 @@
-import os
-import uuid
 from flask import Flask, request, jsonify
+import os
 from deepface import DeepFace
+import cv2
+import uuid
 
 app = Flask(__name__)
+UPLOAD_FOLDER = "stored_faces"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Folder to store enrolled faces
-ENROLL_DIR = "faces"
-os.makedirs(ENROLL_DIR, exist_ok=True)
-
-
-@app.route("/")
-def home():
-    return jsonify({"message": "Face Recognition API is running!"})
-
-
-# 1. Enroll API
+# 1️⃣ Enroll Face
 @app.route("/enroll", methods=["POST"])
 def enroll_face():
-    try:
-        if "image" not in request.files or "user_id" not in request.form:
-            return jsonify({"error": "Send 'image' file and 'user_id' field"}), 400
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    
+    file = request.files["file"]
+    filename = f"{uuid.uuid4().hex}.jpg"
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(filepath)
 
-        image = request.files["image"]
-        user_id = request.form["user_id"]
+    return jsonify({"message": "Face enrolled", "filename": filename})
 
-        # Save image with unique name under user's folder
-        user_folder = os.path.join(ENROLL_DIR, user_id)
-        os.makedirs(user_folder, exist_ok=True)
-
-        file_path = os.path.join(user_folder, f"{uuid.uuid4().hex}.jpg")
-        image.save(file_path)
-
-        return jsonify({"message": f"Face enrolled for {user_id}", "path": file_path})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# 2. Match API
+# 2️⃣ Match Face
 @app.route("/match", methods=["POST"])
 def match_face():
-    try:
-        if "image" not in request.files:
-            return jsonify({"error": "Send 'image' file"}), 400
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    
+    file = request.files["file"]
+    temp_path = "temp.jpg"
+    file.save(temp_path)
 
-        query_img = request.files["image"]
-        query_path = os.path.join("/tmp", f"{uuid.uuid4().hex}.jpg")
-        query_img.save(query_path)
+    stored_images = [os.path.join(UPLOAD_FOLDER, f) for f in os.listdir(UPLOAD_FOLDER)]
+    if not stored_images:
+        return jsonify({"error": "No enrolled faces found"}), 404
 
-        # Compare with all enrolled images
-        results = []
-        for root, dirs, files in os.walk(ENROLL_DIR):
-            for file in files:
-                enrolled_path = os.path.join(root, file)
-                try:
-                    result = DeepFace.verify(query_path, enrolled_path, model_name="ArcFace")
-                    if result["verified"]:
-                        user_id = os.path.basename(root)
-                        results.append({
-                            "user_id": user_id,
-                            "distance": result["distance"],
-                            "threshold": result["threshold"]
-                        })
-                except Exception:
-                    continue
+    best_match = None
+    best_score = 10  # smaller = better
+    for img in stored_images:
+        try:
+            result = DeepFace.verify(temp_path, img, model_name="ArcFace", enforce_detection=False)
+            if result["distance"] < best_score:
+                best_score = result["distance"]
+                best_match = os.path.basename(img)
+        except Exception as e:
+            continue
 
-        os.remove(query_path)
-
-        if not results:
-            return jsonify({"match": False, "message": "No matching face found"})
-
-        # Sort by best (lowest distance)
-        best = sorted(results, key=lambda x: x["distance"])[0]
-
-        return jsonify({"match": True, "best_match": best, "candidates": results})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    if best_match:
+        return jsonify({"match": True, "filename": best_match, "score": best_score})
+    else:
+        return jsonify({"match": False}), 200
