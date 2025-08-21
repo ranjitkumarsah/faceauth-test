@@ -2,7 +2,7 @@ Flask==3.0.0
 gunicorn==23.0.0
 deepface==0.0.92
 torch==2.5.1
-torchvision==0.20.1
+torchvision==0.22.1
 opencv-python-headless==4.10.0.84
 mtcnn==0.1.1
 retina-face==0.0.17
