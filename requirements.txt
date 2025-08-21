@@ -1,12 +1,7 @@
-Flask==3.0.0
-gunicorn==23.0.0
+flask==3.0.3
 deepface==0.0.92
-
-# PyTorch stack (must match!)
-torch==2.5.1
-torchvision==0.22.0
-
-# Image + detection
-opencv-python-headless==4.10.0.84
 mtcnn==0.1.1
-retina-face==0.0.17
+opencv-python-headless==4.10.0.84
+torch==2.5.1
+torchvision==0.20.0
+numpy==1.26.4
